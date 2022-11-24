@@ -36,9 +36,9 @@ class Product {
       .catch(err => console.log(err));
   }
 
-  static findById(id) {
+  static findById(prodId) {
     const db = getDb();
-    return db.collection('products').findOne({ _id: new mongodb.ObjectId(id) })
+    return db.collection('products').findOne({ _id: new mongodb.ObjectId(prodId) })
       .then(product => {
         console.log(product)
         return product;
