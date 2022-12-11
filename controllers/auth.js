@@ -3,8 +3,7 @@ const bcrypt = require('bcryptjs')
 const sgMail = require('@sendgrid/mail')
 const dotenv = require("dotenv");
 const crypto = require('crypto');
-const { reset } = require('nodemon');
-
+const { validationResult } = require('express-validator')
 dotenv.config();
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -22,17 +21,37 @@ exports.getLogin = (req, res, next) => {
         pageTitle: 'Login',
         isAuthenticated: req.session.isLoggedIn,
         errorMessage: message,
+        oldInput: { email: '', password: '' },
+        validationErrors: []
     });
 };
 
 exports.postLogin = (req, res, next) => {
     const email = req.body.email;
     const password = req.body.password;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).render('auth/login', {
+            path: '/login',
+            pageTitle: 'Login',
+            isAuthenticated: req.session.isLoggedIn,
+            errorMessage: errors.array()[0].msg,
+            oldInput: { email: email, password: password },
+            validationErrors: errors.array()
+
+        });
+    }
     User.findOne({ email: email })
         .then(user => {
             if (!user) {
-                req.flash('error', 'Invalid email or password');
-                return res.redirect('/login');
+                return res.status(400).render('auth/login', {
+                    path: '/login',
+                    pageTitle: 'Login',
+                    isAuthenticated: req.session.isLoggedIn,
+                    errorMessage: 'Invalid email or password',
+                    oldInput: { email: email, password: password },
+                    validationErrors: []
+                });
             }
             bcrypt.compare(password, user.password)
                 .then(doMatch => {
@@ -44,8 +63,14 @@ exports.postLogin = (req, res, next) => {
                             res.redirect('/');
                         })
                     }
-                    req.flash('error', 'Invalid email or password');
-                    res.redirect('/login');
+                    return res.status(400).render('auth/login', {
+                        path: '/login',
+                        pageTitle: 'Login',
+                        isAuthenticated: req.session.isLoggedIn,
+                        errorMessage: 'Invalid email or password',
+                        oldInput: { email: email, password: password },
+                        validationErrors: []
+                    });
                 })
                 .catch(err => {
                     console.log(err)
@@ -74,48 +99,51 @@ exports.getSignup = (req, res, next) => {
         path: '/signup',
         pageTitle: 'Signup',
         isAuthenticated: false,
-        errorMessage: message
+        errorMessage: message,
+        oldInput: { email: '', password: '', confirmPassword: '' },
+        validationErrors: []
     });
 };
 
 exports.postSignup = (req, res, next) => {
     const email = req.body.email;
     const password = req.body.password;
-    const confirmPassword = req.body.confirmPassword;
-    User.findOne({ email: email }).then(user => {
-        if (user) {
-            req.flash('error', 'E-Mail exists already, please pick a different one')
-            return res.redirect('/signup')
-        }
-        return bcrypt.hash(password, 12)
-            .then(hashedPassword => {
-                const user = new User({
-                    email: email,
-                    password: hashedPassword,
-                    cart: { items: [] }
-                });
-                return user.save()
-                    .then(result => {
-                        res.redirect('/login');
-                        const msg = {
-                            to: email,
-                            from: 'osama.omarii02@gmail.com',
-                            subject: 'Signup succeeded!!',
-                            text: 'this is the text',
-                            html: '<h1>You succefully signed up!</h1>'
-                        }
-                        sgMail.send(msg)
-                            .then(() => console.log('Email sent'))
-                            .catch(err => console.log(err))
-                    })
-                    .catch(err => {
-                        console.log(err)
-                    })
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).render('auth/signup', {
+            path: '/signup',
+            pageTitle: 'Signup',
+            isAuthenticated: false,
+            errorMessage: errors.array()[0].msg,
+            oldInput: { email: email, password: password, confirmPassword: req.body.confirmPassword },
+            validationErrors: errors.array()
+        });
+    }
+    return bcrypt.hash(password, 12)
+        .then(hashedPassword => {
+            const user = new User({
+                email: email,
+                password: hashedPassword,
+                cart: { items: [] }
             });
-    })
-        .catch(err => {
-            console.log(err);
-        })
+            return user.save()
+                .then(result => {
+                    res.redirect('/login');
+                    const msg = {
+                        to: email,
+                        from: 'osama.omarii02@gmail.com',
+                        subject: 'Signup succeeded!!',
+                        text: 'this is the text',
+                        html: '<h1>You succefully signed up!</h1>'
+                    }
+                    sgMail.send(msg)
+                        .then(() => console.log('Email sent'))
+                        .catch(err => console.log(err))
+                })
+                .catch(err => {
+                    console.log(err)
+                })
+        });
 
 };
 exports.getReset = (req, res, next) => {
