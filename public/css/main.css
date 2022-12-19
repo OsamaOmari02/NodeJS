@@ -233,6 +233,24 @@ form {
   background: rgb(224, 152, 152);
 }
 
+.pagination {
+  text-align: center;
+}
+
+.pagination a {
+  text-decoration: none;
+  color: green;
+  padding: 0.5rem;
+  border: 1px solid green;
+  margin: 0 1rem;
+}
+
+.pagination a:hover,
+.pagination a:active {
+  background: green;
+  color: white;
+}
+
 @media (min-width: 768px) {
   .main-header__nav {
     display: flex;
@@ -245,5 +263,4 @@ form {
   .user-message {
     width: 30rem;
   }
-
 }
